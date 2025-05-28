@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Net Zero Smart House_</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 500px; margin: auto; padding: 20px;   background-image:url('images (16).jpeg');}
+    .screen { display: none; }
+    .screen.active { display: block; }
+    label { display: block; margin-top: 10px; font-weight: bold; }
+    input, select, button { width: 100%; margin-top: 5px; margin-bottom: 15px; padding: 8px; }
+    button { background-color: #007BFF;  border: none; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+    #summary { font-size: 18px; font-weight: bold; padding: 15px; text-align: center; margin-top: 20px; }
+    canvas { width: 100%; height: 300px; }
+    body {
+  font-family: Arial, sans-serif;
+  max-width: 500px;
+  margin: auto;
+  padding: 20px;
+  background-image: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.8)),
+    url('images (16).jpeg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #002efc;
+}
+  </style>
+</head>
+<body>
+
+<h2>Net Zero Smart House</h2>
+
+<!-- Screen 1: Electricity -->
+<div class="screen active" id="electricityScreen">
+  <label>Track Your Energy Use/Production           In Your Home</label>
+  <label>Electricity Units Used:</label>
+  <input type="text" id="units" placeholder="e.g., 120" />
+
+  <label>Solar Units Produced:(Enter Units in kWh)
+  </label>
+  <input type="text" id="solar" placeholder="e.g., 30" />
+
+  <label>LPG Gas Used (weight of the cylinder in kg ):</label>
+  <input type="text" id="lpg" placeholder="e.g., 2.5" />
+
+  <label>Number of Days LPG lasts (One Cylinder):</label>
+  <input type="text" id="lpgDays" placeholder="e.g., 10" />
+
+  <button onclick="calcElectricity()">Next: Transport</button>
+</div>
+
+<!-- Screen 2: Transport -->
+<div class="screen" id="transportScreen">
+  <label>Select Fuel Type:</label>
+  <select id="fuelType">
+    <option value="Petrol">Petrol</option>
+    <option value="Diesel">Diesel</option>
+    <option value="Electric">Electric</option>
+    <option value="Hybrid">Hybrid</option>
+  </select>
+
+  <label>Distance Travelled per Day (km):</label>
+  <input type="text" id="distance" placeholder="e.g., 25" />
+
+  <label>Select Vehicle:</label>
+  <select id="vehicleType">
+    <option value="Car">Car</option>
+    <option value="Bus">Bus</option>
+    <option value="Motorbike">Motorbike</option>
+    <option value="Walking">Walking</option>
+    <option value="Bicycle">Bicycle</option>
+    <option value="Van">Van</option>
+
+  </select>
+
+  <button onclick="calcTransport()">Next: Food Waste</button>
+</div>
+
+<!-- Screen 3: Food Waste -->
+<div class="screen" id="foodScreen">
+  <label>Food Waste (grams):</label>
+  <input type="text" id="foodWaste" placeholder="e.g., 300" />
+
+  <label>Other Waste (grams):</label>
+  <input type="text" id="otherWaste" placeholder="e.g., 500" />
+
+  <label>Recycled Waste (grams):</label>
+  <input type="text" id="recycled" placeholder="e.g., 200" />
+
+  <button onclick="calcFood()">View CO₂ Summary</button>
+</div>
+
+<!-- Screen 4: Final Summary -->
+<div class="screen" id="summaryScreen">
+  <div id="summary"></div>
+  <canvas id="emissionChart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function calcElectricity() {
+    let units = parseFloat(document.getElementById("units").value) || 0;
+    let solar = parseFloat(document.getElementById("solar").value) || 0;
+    let lpg = parseFloat(document.getElementById("lpg").value) || 0;
+    
+    // LPG gas calculation based on user inputs
+    let lpgDays = parseFloat(document.getElementById("lpgDays").value) || 1; // Default to 1 day if not provided
+
+    // Daily LPG usage
+    let dailyLpgUsage = 12.5 / lpgDays; // 12.5 kg per cylinder, divided by the number of days the cylinder lasts
+    // Total LPG used (We don't need user input for days used anymore)
+    let totalLpgUsed = dailyLpgUsage;
+
+    // CO2 emission from LPG
+    let lpgCO2 = totalLpgUsed * 2.98;  // 2.98 kg CO2 per kg of LPG
+
+    // Calculate net electricity usage after subtracting solar
+    let netUnits = Math.max(0, units - solar);
+    
+    // Calculate CO2 from electricity
+    let electricityCO2 = netUnits * 0.85;  // Assuming 0.85 kg CO2 per kWh
+
+    // Total CO2 emissions from electricity and LPG gas
+    let totalElectricityCO2 = electricityCO2 + lpgCO2;
+    
+    // Store the CO2 value in localStorage
+    localStorage.setItem("electricityCO2", totalElectricityCO2.toFixed(2));
+    
+    // Move to the transport screen
+    showScreen("transportScreen");
+  }
+
+  function calcTransport() {
+    let fuel = document.getElementById("fuelType").value;
+    let distance = parseFloat(document.getElementById("distance").value) || 0;
+    let vehicle = document.getElementById("vehicleType").value;
+
+    let factor = 0;
+
+    // CO2 emission factors for different vehicles and fuels
+    if (vehicle === "Car") {
+      if (fuel === "Petrol") factor = 0.95;
+      else if (fuel === "Diesel") factor = 1.2;
+      else if (fuel === "Electric") factor = 0.05;  // Electric vehicles have low emissions
+      else if (fuel === "Hybrid") factor = 0.45;  // Hybrid vehicles are more efficient
+    }
+    else if (vehicle === "Bus") factor = 0.9;
+    else if (vehicle === "Motorbike") factor = 0.57;
+    else if (vehicle === "Walking") factor = 0;
+    else if (vehicle === "Bicycle") factor = 0;
+    else if (vehicle === "Van") factor = fuel === "Petrol" ? 1.4 : 1.6;
+    else if (vehicle === "Truck") factor = 2.5;
+    else if (vehicle === "Train") factor = 0.3;  // Trains are more efficient than cars
+
+    // Calculate CO2 for transport
+    let transportCO2 = distance * factor;
+    localStorage.setItem("transportCO2", transportCO2.toFixed(2));
+
+    // Move to the food waste screen
+    showScreen("foodScreen");
+  }
+
+  function calcFood() {
+    let food = parseFloat(document.getElementById("foodWaste").value) || 0;
+    let other = parseFloat(document.getElementById("otherWaste").value) || 0;
+    let recycled = parseFloat(document.getElementById("recycled").value) || 0;
+
+    let foodCO2 = (food / 1000) * 2.5;  // Food waste emission factor: 2.5 kg CO2 per kg
+    let netOther = Math.max(0, (other - recycled) / 1000);  // Other waste minus recycled waste
+    let otherCO2 = netOther * 1.8;  // Other waste emission factor: 1.8 kg CO2 per kg
+
+    let foodTotal = foodCO2 + otherCO2;
+    localStorage.setItem("foodCO2", foodTotal.toFixed(2));
+
+    // Show final summary screen
+    showScreen("summaryScreen");
+
+    showSummary();
+  }
+
+  function showSummary() {
+  let e = parseFloat(localStorage.getItem("electricityCO2") || 0);
+  let t = parseFloat(localStorage.getItem("transportCO2") || 0);
+  let f = parseFloat(localStorage.getItem("foodCO2") || 0);
+
+  let total = e + t + f;
+
+  let color = "green";
+  if (total > 50) color = "yellow";
+  if (total > 100) color = "red";
+
+  document.getElementById("summary").innerHTML = `
+    <h3>Total CO₂ Emissions: ${total.toFixed(2)} kg</h3>
+   <p style="color: black;">
+  Status: <span style="color: ${color}; font-weight: bold;">
+    ${color === "green" ? "Low" : color === "yellow" ? "Medium" : "High"}
+  </span>
+</p>
+  `;
+
+  let ctx = document.getElementById('emissionChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: ['Electricity', 'Transport', 'Food Waste'],
+      datasets: [{
+        label: 'CO₂ Emissions (kg)',
+        data: [e, t, f],
+        backgroundColor: [
+          '#4A90E2', // Electricity (Blue)
+          '#F5A623', // Transport (Orange)
+          '#7ED321'  // Food Waste (Green)
+        ],
+        borderColor: ['#ffffff', '#ffffff', '#ffffff'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          labels: {
+            color: '#333',
+            font: {
+              size: 14
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+
+</script>
+
+</body>
+</html>
